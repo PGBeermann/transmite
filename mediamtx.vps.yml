@@ -1,0 +1,93 @@
+###############################################################################
+# Clase en Vivo UNACHI — configuración de MediaMTX para el MODO VPS
+# (Dokploy / Docker detrás de Traefik con HTTPS). Probada contra MediaMTX v1.21.1.
+#
+# Modelo de seguridad:
+#   - MediaMTX NO se expone a Internet por HTTP: la señalización (WHIP/WHEP,
+#     reader.js, publisher.js) escucha sólo en 127.0.0.1:8889 y le llega a
+#     través de servidor_clase.py, que exige la sesión del profesor para
+#     publicar y, si se configuró, la clave de estudiantes para ver.
+#   - Por eso MediaMTX sólo autoriza publicar desde 127.0.0.1 (el proxy).
+#   - Lo único público de MediaMTX es el puerto de medios 8189 (UDP y TCP),
+#     cifrado siempre con DTLS-SRTP.
+#   - La IP pública que se anuncia a los navegadores se inyecta con la
+#     variable MTX_WEBRTCADDITIONALHOSTS (servidor_clase.py la toma de
+#     CLASE_IP_PUBLICA).
+###############################################################################
+
+logLevel: info
+logDestinations: [stdout]
+
+readTimeout: 10s
+writeTimeout: 10s
+writeQueueSize: 512
+
+###############################################################################
+# Autenticación
+authMethod: internal
+authInternalUsers:
+  # Ver: cualquiera que pase el filtro del proxy.
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+        path: clase
+
+  # Publicar, API y métricas: sólo el proxy local.
+  - user: any
+    pass:
+    ips: ["127.0.0.1", "::1"]
+    permissions:
+      - action: publish
+        path: clase
+      - action: read
+        path: clase
+      - action: api
+      - action: metrics
+
+###############################################################################
+api: true
+apiAddress: 127.0.0.1:9997
+
+metrics: false
+pprof: false
+playback: false
+
+# Protocolos no necesarios: se desactivan (RTMP incluido; OBS usa WHIP con token).
+rtsp: false
+rtmp: false
+hls: false
+srt: false
+moq: false
+
+###############################################################################
+# WebRTC
+webrtc: true
+# Señalización sólo local: la publica servidor_clase.py por HTTPS en /clase/.
+webrtcAddress: 127.0.0.1:8889
+# TLS lo termina Traefik; aquí la señalización es HTTP local.
+webrtcEncryption: false
+webrtcAllowOrigins: []
+# Medios: deben publicarse en el host (docker-compose: 8189/udp y 8189/tcp)
+# y abrirse en el firewall del VPS.
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+# Dentro del contenedor las interfaces sólo tienen IP privadas de Docker:
+# no se anuncian. Se anuncia la IP pública (MTX_WEBRTCADDITIONALHOSTS).
+webrtcIPsFromInterfaces: false
+webrtcIPsFromInterfacesList: []
+webrtcIPsFromInterfacesExcludeList: []
+webrtcAdditionalHosts: []
+# El servidor tiene IP pública: no requiere STUN/TURN propio.
+webrtcICEServers2: []
+webrtcHandshakeTimeout: 10s
+webrtcTrackGatherTimeout: 2s
+
+###############################################################################
+pathDefaults:
+  source: publisher
+  overridePublisher: true
+
+paths:
+  clase:

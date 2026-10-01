@@ -1,0 +1,10 @@
+.git
+.github
+mediamtx/mediamtx
+mediamtx/mediamtx.exe
+*.bat
+*.sh
+*.md
+web/*.rmd
+web/vendor/*.md
+.env

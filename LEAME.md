@@ -13,6 +13,8 @@ Profesor (este equipo)                                   Estudiantes (misma Wi-F
 └──────────────────────────────────────────┘            └────────────────────────┘
 ```
 
+> **¿Transmitir desde un servidor en la nube (VPS con Dokploy)?** Vea [`DESPLIEGUE_VPS.md`](DESPLIEGUE_VPS.md): el mismo programa funciona en **modo VPS** (`--modo vps`) con HTTPS, contraseña del profesor y clave opcional para los estudiantes.
+
 ## Contenido
 
 | Archivo | Función |
@@ -26,6 +28,8 @@ Profesor (este equipo)                                   Estudiantes (misma Wi-F
 | `web/index.html` | Página del estudiante: video en vivo, pantalla completa y reconexión automática |
 | `web/estilo.css` | Identidad visual UNACHI (verde Pantone 364 C, rojo Pantone 187 C) |
 | `web/vendor/qrcode.js` | Generador de QR sin conexión (K. Arase, licencia MIT) |
+| `mediamtx.vps.yml`, `Dockerfile`, `docker-compose.yml`, `.env.example` | Modo VPS (Dokploy/Docker); ver `DESPLIEGUE_VPS.md` |
+| `web/login.html`, `web/entrar.html` | Acceso del profesor y de estudiantes en modo VPS |
 
 ## Requisitos
 

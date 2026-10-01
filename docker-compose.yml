@@ -1,0 +1,31 @@
+# Clase en Vivo UNACHI — despliegue en Dokploy (tipo "Docker Compose")
+#
+# Dominio: configúrelo en la pestaña "Domains" de Dokploy
+#   Service Name = clase · Container Port = 8080 · HTTPS = activado (Let's Encrypt)
+# Variables: pestaña "Environment" (ver .env.example).
+services:
+  clase:
+    build: .
+    restart: unless-stopped
+    environment:
+      CLASE_MODO: vps
+      CLASE_URL_PUBLICA: ${CLASE_URL_PUBLICA}
+      CLASE_IP_PUBLICA: ${CLASE_IP_PUBLICA}
+      CLASE_PASSWORD_PROFESOR: ${CLASE_PASSWORD_PROFESOR}
+      CLASE_CLAVE_ESTUDIANTES: ${CLASE_CLAVE_ESTUDIANTES:-}
+      CLASE_TOKEN_OBS: ${CLASE_TOKEN_OBS:-}
+      CLASE_SECRETO: ${CLASE_SECRETO:-}
+    # Páginas y señalización: sólo hacia Traefik (no se publica en el host).
+    expose:
+      - "8080"
+    # Medios WebRTC: Traefik no enruta UDP, por eso se publican en el host.
+    # El número de puerto debe ser el MISMO dentro y fuera (8189:8189).
+    ports:
+      - "8189:8189/udp"
+      - "8189:8189/tcp"
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
