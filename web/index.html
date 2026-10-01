@@ -59,8 +59,11 @@
 (() => {
   const C = window.CLASE || { puertoWebrtc: 8889, ruta: "clase" };
   const $ = (id) => document.getElementById(id);
-  // Se usa el mismo host con el que el estudiante abrió la página.
-  const base = `http://${location.hostname}:${C.puertoWebrtc}/${C.ruta}/`;
+  const VPS = C.modo === "vps";
+  // LAN: mismo host con el que se abrió la página, puerto de MediaMTX.
+  // VPS: mismo origen HTTPS; el servidor reenvía /clase/ a MediaMTX.
+  const base = C.baseWebrtc ? new URL(C.baseWebrtc, location.href).href
+                            : `http://${location.hostname}:${C.puertoWebrtc}/${C.ruta}/`;
   const video = $("video");
   let reader = null;
 
@@ -88,7 +91,8 @@
     try { await cargarReader(); }
     catch {
       estado(false, "No se alcanza el servidor del aula",
-        "Verifique que está conectado a la misma red Wi-Fi que el profesor. Reintentando…");
+        VPS ? "Verifique su conexión a Internet. Si la clase pide código de acceso, vuelva a abrir el enlace del profesor. Reintentando…"
+            : "Verifique que está conectado a la misma red Wi-Fi que el profesor. Reintentando…");
       return setTimeout(conectar, 3000);
     }
     reader = new window.MediaMTXWebRTCReader({

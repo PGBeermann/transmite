@@ -50,14 +50,16 @@
     <span class="inst">Universidad Autónoma de Chiriquí</span>
     <span class="sub">Clase en Vivo · Panel del profesor</span>
   </div>
-  <div class="der"><span id="insignia" class="insignia"><span class="punto"></span><span id="insigniaTxt">Sin transmitir</span></span></div>
+  <div class="der"><span id="insignia" class="insignia"><span class="punto"></span><span id="insigniaTxt">Sin transmitir</span></span>
+    <a id="lnkSalir" class="btn sec oculto" href="/logout" style="padding:6px 12px;font-size:.85rem;color:#fff;border-color:rgba(255,255,255,.55)">Cerrar sesión</a></div>
 </header>
 
 <main>
   <section class="tarjeta">
     <h2>Transmisión de pantalla</h2>
     <div id="avisoSeguro" class="aviso oculto">
-      Este panel debe abrirse como <b>http://localhost:<span class="pw"></span>/profesor.html</b> en el equipo del profesor:
+      <span id="avisoLan">Este panel debe abrirse como <b>http://localhost:<span class="pw"></span>/profesor.html</b> en el equipo del profesor:</span>
+      <span id="avisoVps" class="oculto">Abra este panel por <b>HTTPS</b> con un navegador de escritorio actualizado (Chrome, Edge o Firefox):</span>
       el navegador sólo permite capturar la pantalla en un contexto seguro (localhost o HTTPS).
     </div>
     <div class="vista">
@@ -122,7 +124,8 @@
         <summary>Transmitir con OBS Studio (opcional)</summary>
         <ol>
           <li>OBS 30 o superior → <i>Ajustes → Emisión</i>.</li>
-          <li>Servicio: <b>WHIP</b> · Servidor: <code>http://localhost:8889/clase/whip</code></li>
+          <li>Servicio: <b>WHIP</b> · Servidor: <code id="obsServidor">http://localhost:8889/clase/whip</code></li>
+          <li id="obsTokenLi" class="oculto">Token de portador (<i>Bearer Token</i>): el valor de <code>CLASE_TOKEN_OBS</code> configurado en el servidor.</li>
           <li><i>Salida</i> (modo avanzado): x264, perfil <code>baseline</code>, tune <code>zerolatency</code>, intervalo de fotogramas clave 1 s, 1500–2500 kbps.</li>
           <li>Pulse «Iniciar transmisión» en OBS. No use este panel al mismo tiempo.</li>
         </ol>
@@ -130,14 +133,14 @@
     </section>
   </aside>
 </main>
-<div class="pie">Clase en Vivo UNACHI · transmisión local por WebRTC (MediaMTX <span id="ver"></span>) · la señal no sale de la red del aula</div>
+<div class="pie">Clase en Vivo UNACHI · transmisión por WebRTC (MediaMTX <span id="ver"></span>) · <span id="pieAlcance">la señal no sale de la red del aula</span></div>
 
 <div id="proyeccion" class="oculto" title="Clic o Esc para cerrar">
   <div class="franja"></div>
   <h1>Escanee para ver la clase</h1>
   <div id="qrGrande" class="qrgrande"></div>
   <div id="urlGrande" class="url"></div>
-  <div style="color:#555;font-size:2.2vh">Conéctese primero a la misma red Wi-Fi del aula</div>
+  <div id="notaProyeccion" style="color:#555;font-size:2.2vh">Conéctese primero a la misma red Wi-Fi del aula</div>
 </div>
 
 <script src="vendor/qrcode.js"></script>
@@ -154,7 +157,20 @@
     movimiento:  { w: 1280, h: 720,  fps: 30, kbps: 2500, hint: "motion" },
     red:         { w: 1280, h: 720,  fps: 10, kbps: 800,  hint: "detail" },
   };
-  const base = `http://localhost:${C.puertoWebrtc}/${C.ruta}/`;
+  const VPS = C.modo === "vps";
+  // LAN: MediaMTX en el mismo equipo. VPS: mismo origen HTTPS (/clase/ → MediaMTX).
+  const base = C.baseWebrtc ? new URL(C.baseWebrtc, location.href).href
+                            : `http://localhost:${C.puertoWebrtc}/${C.ruta}/`;
+  if (VPS) {
+    $("lnkSalir").classList.remove("oculto");
+    $("avisoLan").classList.add("oculto");
+    $("avisoVps").classList.remove("oculto");
+    $("pieAlcance").textContent = "servidor institucional con HTTPS";
+    $("notaProyeccion").textContent = C.claveEstudiantes ? "El código QR incluye la clave de acceso de la clase"
+                                                         : "Funciona desde cualquier red con Internet";
+    if (C.obsWhip) $("obsServidor").textContent = C.obsWhip;
+    if (C.obsToken) $("obsTokenLi").classList.remove("oculto");
+  }
   let publisher = null, stream = null, inicioVivo = null, ultimoBytes = null, ultimoT = null;
 
   document.querySelectorAll(".pw").forEach((e) => (e.textContent = C.puertoWeb));
@@ -162,7 +178,7 @@
   const msg = (t, error = false) => { $("msg").textContent = t; $("msg").classList.toggle("error", error); };
 
   // ---------- QR y enlace ----------
-  const urlEstudiante = (ip) => `http://${ip}:${C.puertoWeb}/`;
+  const urlEstudiante = (ip) => (VPS && C.urlEstudiante) ? C.urlEstudiante : `http://${ip}:${C.puertoWeb}/`;
   const svgQR = (texto) => {
     const q = qrcode(0, "M"); q.addData(texto); q.make();
     return q.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
@@ -176,10 +192,10 @@
     $("lnkEstudiante").href = url;
   };
   C.ips.forEach((ip) => $("selIp").add(new Option(ip, ip)));
-  if (C.ips.length < 2) $("campoIp").classList.add("oculto");
+  if (VPS || C.ips.length < 2) $("campoIp").classList.add("oculto");
   $("selIp").onchange = pintarQR;
   pintarQR();
-  if (C.ips[0] === "127.0.0.1") {
+  if (!VPS && C.ips[0] === "127.0.0.1") {
     $("msgServidor").textContent = "No se detectó una red local: conecte el equipo al Wi-Fi del aula y reinicie.";
     $("msgServidor").classList.add("error");
   }
@@ -230,7 +246,8 @@
       $("btnIniciar").disabled = !window.isSecureContext;
       msg("Listo. Elija la calidad y pulse «Compartir pantalla».");
     } catch {
-      msg("El servidor de medios (MediaMTX) no responde en el puerto " + C.puertoWebrtc + ". Reintentando…", true);
+      msg(VPS ? "El servidor de medios no responde (o la sesión expiró). Reintentando…"
+              : "El servidor de medios (MediaMTX) no responde en el puerto " + C.puertoWebrtc + ". Reintentando…", true);
       setTimeout(prepararse, 3000);
     }
   };
@@ -328,6 +345,7 @@
   const actualizarEstado = async () => {
     try {
       const r = await fetch("/api/estado", { cache: "no-store" });
+      if (VPS && (r.status === 401 || r.status === 403)) { location.href = "/login.html"; return; }
       const d = await r.json();
       const vivo = d.enVivo;
       $("insignia").classList.toggle("vivo", vivo);

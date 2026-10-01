@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#299100">
+<meta name="robots" content="noindex">
+<title>Clase en Vivo · Acceso a la clase · UNACHI</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  main { max-width: 420px; margin: 8vh auto; padding: 0 16px; }
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio); padding: 22px; }
+  h1 { font-family: var(--serif); font-size: 1.3rem; color: var(--verde); margin: 0 0 8px; }
+  @media (prefers-color-scheme: dark) { h1 { color: #6fcf4a; } }
+  p { color: var(--gris); margin: 0 0 16px; font-size: .95rem; }
+  label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .88rem; }
+  input { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--borde); background: var(--tarjeta); color: var(--texto); }
+  input:focus { outline: 2px solid var(--verde); outline-offset: 1px; }
+  .btn { width: 100%; justify-content: center; margin-top: 16px; }
+  .error { color: var(--rojo); font-weight: 600; font-size: .88rem; margin-top: 12px; }
+</style>
+</head>
+<body>
+<header class="cabecera">
+  <img class="logo" src="logo-unachi.png" alt="UNACHI" onerror="this.remove()">
+  <div class="titulos">
+    <span class="inst">Universidad Autónoma de Chiriquí</span>
+    <span class="sub">Clase en Vivo · Acceso a la clase</span>
+  </div>
+</header>
+<main>
+  <form class="tarjeta" method="post" action="/entrar">
+    <h1>Código de acceso</h1>
+    <p>Escriba el código que le indicó su profesor, o escanee el código QR proyectado en el aula.</p>
+    <label>Código de la clase
+      <input name="clave" type="text" autocomplete="off" required autofocus>
+    </label>
+    <button class="btn grande" type="submit">Entrar a la clase</button>
+    <div id="error" class="error oculto">Código incorrecto. Verifíquelo con su profesor.</div>
+  </form>
+</main>
+<script>
+  if (new URLSearchParams(location.search).has("e")) document.getElementById("error").classList.remove("oculto");
+</script>
+</body>
+</html>
