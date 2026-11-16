@@ -63,6 +63,10 @@ from collections import deque
 from pathlib import Path
 
 MEDIAMTX_VERSION = "v1.21.1"
+# Versión del programa: visible en /version y en el registro al iniciar, para
+# confirmar qué versión quedó desplegada.
+VERSION = "2.0.1"
+FUNCIONES = ["chat", "expresiones", "mano", "palabra", "grabacion"]
 RUTA_STREAM = "clase"
 RUTA_VOZ = "voz"          # micrófono del estudiante que tiene la palabra
 PUERTO_WEBRTC = 8889
@@ -1001,6 +1005,9 @@ class ManejadorAula(http.server.SimpleHTTPRequestHandler):
             return self.responder(self.config_js(), "application/javascript; charset=utf-8")
         if ruta == "/salud":
             return self.responder(b"ok", "text/plain")
+        if ruta == "/version":
+            return self.responder(json.dumps({"version": VERSION, "funciones": FUNCIONES}).encode(),
+                                  "application/json")
         if ruta == "/eventos":
             return self.eventos(consulta)
         if ruta in ("/api/estado", "/api/grabaciones", "/api/chat.txt") or ruta.startswith("/grabaciones/"):
@@ -1087,6 +1094,7 @@ def main() -> int:
     args = ap.parse_args()
 
     global SALA
+    log(f"Clase en Vivo UNACHI v{VERSION} ({', '.join(FUNCIONES)})")
     SALA = Sala(DIR_GRABACIONES)
     vps = args.modo == "vps"
     ManejadorAula.modo = args.modo
