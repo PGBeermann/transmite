@@ -16,12 +16,16 @@ ADD https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}
 RUN mkdir -p /app/mediamtx \
  && tar -xzf /tmp/mediamtx.tar.gz -C /app/mediamtx mediamtx LICENSE \
  && rm /tmp/mediamtx.tar.gz \
- && useradd --system --no-create-home --uid 10001 clase
+ && useradd --system --no-create-home --uid 10001 clase \
+ && mkdir -p /app/grabaciones && chown clase /app/grabaciones
 
 COPY servidor_clase.py mediamtx.yml mediamtx.vps.yml ./
 COPY web ./web
 
 USER clase
+
+# Grabaciones de clase (MP4). Monte aquí un volumen para conservarlas.
+VOLUME ["/app/grabaciones"]
 
 # 8080/tcp: páginas + señalización WebRTC (detrás de Traefik, HTTPS)
 # 8189/udp y 8189/tcp: medios WebRTC (publicados directamente en el host)

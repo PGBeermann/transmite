@@ -15,6 +15,9 @@ services:
       CLASE_CLAVE_ESTUDIANTES: ${CLASE_CLAVE_ESTUDIANTES:-}
       CLASE_TOKEN_OBS: ${CLASE_TOKEN_OBS:-}
       CLASE_SECRETO: ${CLASE_SECRETO:-}
+    # Grabaciones de clase: volumen con nombre para que sobrevivan a cada despliegue.
+    volumes:
+      - grabaciones:/app/grabaciones
     # Páginas y señalización: sólo hacia Traefik (no se publica en el host).
     expose:
       - "8080"
@@ -29,3 +32,6 @@ services:
 networks:
   dokploy-network:
     external: true
+
+volumes:
+  grabaciones:

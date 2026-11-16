@@ -15,6 +15,10 @@ Profesor ───────────────┐                      �
                 │     /               (clave de clase opcional)│
                 │     /clase/whip  ──► MediaMTX 127.0.0.1:8889 │
                 │     /clase/whep  ──►        (sólo local)     │
+                │     /voz/whip    ──► voz del estudiante con  │
+                │     /voz/whep    ──►   la palabra (token)    │
+                │     /eventos     chat, manos, palabra (SSE)  │
+                │   /app/grabaciones  ◄── MP4 (volumen)        │
                 │ MediaMTX medios WebRTC  :8189 UDP/TCP ◄──────┼── video cifrado (DTLS-SRTP)
                 └──────────────────────────────────────────────┘
 ```
@@ -25,6 +29,8 @@ Profesor ───────────────┐                      �
 | **8189** | UDP y TCP | Publicado en el host | Mapeado `8189:8189` en `docker-compose.yml`; ábralo en el firewall |
 | 8889 | TCP/HTTP | Solo `127.0.0.1` dentro del contenedor | No se expone; se accede a través de `/clase/` |
 | 9997 | TCP/HTTP | Solo `127.0.0.1` | No se expone |
+
+Las funciones de participación (chat, expresiones, mano y turno de palabra) y la voz de los estudiantes viajan por los mismos puertos: 443 (HTTPS) para la señalización y los eventos, y 8189 para el audio. **No hay que abrir puertos nuevos.**
 
 ## Cambios respecto al modo LAN
 
@@ -59,6 +65,7 @@ Profesor ───────────────┐                      �
    | `CLASE_CLAVE_ESTUDIANTES` | No | Por ejemplo `QUIM2026`. Si queda vacía, cualquiera con el enlace puede ver la clase |
    | `CLASE_TOKEN_OBS` | No | Token para OBS Studio (WHIP) |
    | `CLASE_SECRETO` | Recomendada | `python3 -c "import secrets; print(secrets.token_hex(32))"`. Sin esta variable, las sesiones se cierran en cada redeploy |
+| `CLASE_DIR_GRABACIONES` | No | Carpeta de las grabaciones dentro del contenedor. Predeterminada: `/app/grabaciones` |
 
 3. En **Domains → Add Domain**:
    - Service Name: `clase`
@@ -66,8 +73,9 @@ Profesor ───────────────┐                      �
    - Path: `/`
    - **Container Port: `8080`**
    - HTTPS: activado, con certificado Let's Encrypt
-4. Pulse **Deploy**. La imagen descarga MediaMTX v1.21.1 durante la construcción.
-5. Verifique que `https://su-dominio/salud` responde `ok`.
+4. **Grabaciones:** `docker-compose.yml` ya declara el volumen con nombre `grabaciones` montado en `/app/grabaciones`, así que los archivos sobreviven a cada despliegue. Dokploy puede respaldarlo con *Volume Backups*.
+5. Pulse **Deploy**. La imagen descarga MediaMTX v1.21.1 durante la construcción.
+6. Verifique que `https://su-dominio/salud` responde `ok`.
 
 ### Alternativa: tipo Application (Dockerfile)
 
@@ -75,13 +83,16 @@ Profesor ───────────────┐                      �
 2. Configure las mismas variables de entorno.
 3. **Domains:** Container Port `8080`.
 4. **Advanced → Ports:** publique `8189 → 8189` con protocolo **UDP** y otra vez `8189 → 8189` con protocolo **TCP**.
+5. **Advanced → Volumes → Add Volume:** tipo *Volume Mount*, nombre `transmite-grabaciones`, **Mount Path `/app/grabaciones`**. Sin este volumen, las grabaciones se pierden en cada despliegue.
 
 ## Uso en clase
 
 1. El profesor abre `https://su-dominio/profesor.html` desde su computadora, con Chrome, Edge o Firefox de escritorio, e ingresa la contraseña.
 2. Pulsa **Compartir pantalla**. Como la página está en HTTPS, el navegador permite capturar la pantalla.
 3. Pulsa **Proyectar QR** o **Copiar enlace** para compartirlo por la plataforma del curso. Si configuró una clave de clase, el enlace la incluye (`?k=…`). Los estudiantes que entren sin el enlace verán una pantalla para escribir el código.
-4. Al terminar, pulsa **Detener transmisión** y luego **Cerrar sesión**.
+4. Durante la clase, el recuadro **Participación** muestra el chat, las manos levantadas y los pedidos de palabra. Con **Dar la palabra**, el estudiante activa su micrófono y toda la clase lo escucha; como la página está en HTTPS, el navegador del estudiante lo permite. Para verlo mientras comparte otra ventana, use **⧉ Ventana flotante**. Los detalles están en `LEAME.md`, sección «Participación de los estudiantes».
+5. Para grabar, pulse **● Iniciar grabación**. Los estudiantes ven el aviso «GRABANDO». Las grabaciones se descargan desde el mismo panel y se borran solas a los 30 días.
+6. Al terminar, pulsa **Detener transmisión** y luego **Cerrar sesión**.
 
 **OBS Studio:** en *Ajustes → Emisión*, elija Servicio **WHIP**, servidor `https://su-dominio/clase/whip`, y en *Bearer Token* escriba el valor de `CLASE_TOKEN_OBS`.
 
@@ -99,6 +110,10 @@ MediaMTX reenvía el video sin volver a codificarlo, así que el procesador del 
 
 Una clase de 1 h con 40 estudiantes en el perfil Equilibrado transfiere unos 27 GB. Compare esa cifra con la cuota mensual de tráfico de su plan.
 
+**Turno de palabra:** la voz del estudiante (≈ 64 kbps) va del estudiante al servidor y del servidor al profesor; desde ahí viaja dentro de la transmisión normal, así que no aumenta el tráfico hacia los demás estudiantes.
+
+**Grabación:** ocupa en disco aproximadamente el bitrate del perfil por la duración. Por ejemplo, 1 h en el perfil Equilibrado ocupa unos 0,7 GB. Revise el espacio libre del VPS con `df -h`. El borrado automático (30 días) se cambia con `recordDeleteAfter` en `mediamtx.vps.yml`.
+
 ## Solución de problemas
 
 | Síntoma | Causa y solución |
@@ -108,6 +123,9 @@ Una clase de 1 h con 40 estudiantes en el perfil Equilibrado transfiere unos 27 
 | El contenedor termina al iniciar con «Defina CLASE_…» | Falta una variable obligatoria |
 | «Demasiados intentos» | Se superaron los 5 fallos en 10 minutos desde esa IP. Espere a que pase el bloqueo |
 | Redes institucionales muy restrictivas no reciben video | Bloquean la salida al puerto 8189 (UDP y TCP). Haría falta un servidor TURN en el puerto 443, que no está incluido en esta versión |
+| El chat o las manos no se actualizan | El proxy está acumulando los eventos en un búfer. Traefik no lo hace por defecto; si hay otro proxy delante (Cloudflare, por ejemplo), desactive el búfer para `/eventos`. El servidor ya envía `X-Accel-Buffering: no` |
+| El estudiante pulsa «Activar micrófono» y el panel sigue en «Esperando el micrófono» | El puerto 8189 de ese estudiante está bloqueado; si su red bloquea el 8189, tampoco recibe el video. Revise también el permiso del micrófono en el navegador |
+| Las grabaciones desaparecen tras un redeploy | Falta el volumen en `/app/grabaciones` (ver arriba) |
 
 ## Pruebas realizadas (30‑sep‑2026)
 
@@ -121,6 +139,16 @@ Se probó con MediaMTX v1.21.1 real y Chromium automatizado (Playwright). La cap
 - MediaMTX quedó escuchando la señalización solo en `127.0.0.1:8889`.
 - El **modo LAN** se verificó de nuevo sin cambios de comportamiento (el profesor publica en `localhost` y el estudiante recibe 1280×720).
 - La imagen Docker no se pudo construir en el entorno de prueba porque no había acceso a Docker Hub. El `Dockerfile` usa solo la imagen oficial `python:3.12-slim` y el binario oficial de MediaMTX.
+
+## Pruebas de las funciones de participación (16‑nov‑2026)
+
+Se probaron en modo VPS, con contraseña y clave de clase, usando MediaMTX v1.21.1 real y Chromium automatizado. Los resultados detallados están en `LEAME.md`, sección «Pruebas de chat, palabra y grabación».
+
+- **Chat, expresiones, manos y pedidos de palabra:** se reciben en tiempo real.
+- **Voz del estudiante:** la reciben los demás dentro de la transmisión y queda en la grabación.
+- **Quitar la palabra:** cierra la sesión de voz en MediaMTX.
+- **Grabación:** se descarga con la sesión del profesor; un estudiante recibe 403.
+- **Rutas nuevas sin sesión** (eventos, acciones, voz sin token): responden 401 o 403.
 
 ## Referencias
 
